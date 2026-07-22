@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abrir Sobres - Álbum Mundial 2026</title>
+    <meta name="description" content="Abre tus sobres de barajitas acumulados del Mundial 2026 y descubre qué jugadores obtienes.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="sobres.css">
+</head>
+
+<body>
+
+    <!-- Shared Header -->
+    <header class="app-header">
+        <div class="header-container">
+            <!-- Back link to album -->
+            <a href="index.html" class="header-back-link" aria-label="Volver al Álbum">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+                <span>Mi Álbum</span>
+            </a>
+
+            <div class="brand-text brand-text-centered">
+                <h1>Mundial 2026</h1>
+                <span class="sub-title">Abrir Sobres</span>
+            </div>
+
+            <!-- Pack counter in header -->
+            <div class="header-pack-counter">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+                <span id="header-packs-count">0</span>
+                <span class="header-pack-label">sobres</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="sobres-page">
+
+        <!-- ========== PHASE 1: SELECTION ========== -->
+        <section id="phase-selection" class="sobres-phase active">
+            <div class="sobres-container">
+
+                <!-- Page Header -->
+                <div class="sobres-header">
+                    <div class="sobres-title-block">
+                        <h2 class="sobres-main-title">Tus Sobres Acumulados</h2>
+                        <p class="sobres-subtitle">Selecciona un sobre para abrirlo y revelar 5 barajitas aleatorias</p>
+                    </div>
+                    <div class="packs-inventory-panel">
+                        <div class="packs-count-widget">
+                            <span class="packs-count-number" id="packs-available-count">0</span>
+                            <span class="packs-count-label">Sobres<br>Disponibles</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instruction -->
+                <p class="sobres-instruction" id="sobres-instruction-text">
+                    Haz clic en cualquier sobre para comenzar la apertura
+                </p>
+
+                <!-- Pack Grid -->
+                <div id="packs-grid" class="packs-grid">
+                    <!-- Dynamically rendered by sobres.js -->
+
+                    <!-- Empty state (shown when no packs) -->
+                    <div id="no-packs-state" class="no-packs-state" aria-live="polite">
+                        <div class="no-packs-icon">
+                            <svg viewBox="0 0 24 24" width="72" height="72" fill="none" stroke="currentColor" stroke-width="1">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                            </svg>
+                        </div>
+                        <h3>No tienes sobres disponibles</h3>
+                        <p>Los nuevos sobres asignados a tu grupo aparecerán aquí automáticamente.</p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ========== PHASE 2: OPENING ANIMATION ========== -->
+        <section id="phase-opening" class="sobres-phase" aria-hidden="true">
+            <div class="opening-stage">
+                <p class="opening-hint" id="opening-hint-text">Haz clic en el sobre para abrirlo</p>
+
+                <!-- Animated Envelope -->
+                <div id="pack-envelope" class="pack-envelope" role="button" tabindex="0" aria-label="Abrir sobre">
+                    <!-- Glow rings -->
+                    <div class="envelope-glow-ring ring-1"></div>
+                    <div class="envelope-glow-ring ring-2"></div>
+                    <div class="envelope-glow-ring ring-3"></div>
+
+                    <!-- Envelope visual -->
+                    <div class="envelope-visual" id="envelope-visual">
+                        <div class="env-flap" id="env-flap"></div>
+                        <div class="env-body">
+                            <div class="env-body-content">
+                                <svg viewBox="0 0 48 48" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.2" class="env-icon">
+                                    <path d="M42 32V16a4 4 0 0 0-2-3.46L26 4a4 4 0 0 0-4 0L8 12.54A4 4 0 0 0 6 16v16a4 4 0 0 0 2 3.46L22 44a4 4 0 0 0 4 0l14-8.54A4 4 0 0 0 42 32z"></path>
+                                    <polyline points="6.54 13.92 24 24.02 41.46 13.92"></polyline>
+                                    <line x1="24" y1="44.16" x2="24" y2="24"></line>
+                                </svg>
+                                <span class="env-title">Sobre Oficial</span>
+                                <span class="env-subtitle">Mundial 2026 · 5 barajitas</span>
+                                <div class="env-shine"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Particle container -->
+                <div id="particle-container" class="particle-container" aria-hidden="true"></div>
+            </div>
+        </section>
+
+        <!-- ========== PHASE 3: REVEAL ========== -->
+        <section id="phase-reveal" class="sobres-phase" aria-hidden="true">
+            <div class="sobres-container">
+                <div class="reveal-header">
+                    <div class="reveal-title-badge">🎉</div>
+                    <h2 class="reveal-title" id="reveal-title">¡Nuevas Barajitas!</h2>
+                    <p class="reveal-subtitle" id="reveal-subtitle-text">Obtuviste 5 barajitas del Mundial 2026</p>
+                </div>
+
+                <!-- Summary pills -->
+                <div class="reveal-summary-pills" id="reveal-summary-pills">
+                    <!-- Rendered by JS: "X Nuevas" / "Y Repetidas" -->
+                </div>
+
+                <!-- Cards grid -->
+                <div id="revealed-cards-grid" class="revealed-cards-grid">
+                    <!-- Rendered by sobres.js with staggered animation -->
+                </div>
+
+                <!-- Actions -->
+                <div class="reveal-actions">
+                    <button id="btn-keep-opening" class="btn btn-primary">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        </svg>
+                        Abrir Otro Sobre
+                    </button>
+                    <a href="index.html" class="btn btn-secondary" id="btn-go-to-album">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+                            <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+                            <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+                            <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+                        </svg>
+                        Ver mi Álbum
+                    </a>
+                    <button id="btn-back-to-selection" class="btn btn-ghost">
+                        Volver a mis Sobres
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="sobres.js"></script>
+</body>
+
+</html>

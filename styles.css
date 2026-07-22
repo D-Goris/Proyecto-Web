@@ -456,6 +456,49 @@ nav button:disabled {
     border: 1px dashed rgba(255, 255, 255, 0.1);
     position: relative;
     overflow: hidden;
+    min-height: 110px;
+}
+
+.card-player-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: var(--radius-sm);
+    transition: transform var(--transition-normal, 0.3s ease);
+}
+
+.card-item:hover .card-player-img {
+    transform: scale(1.08);
+}
+
+.cross-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1.5px dashed rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+}
+
+.card-item:hover .cross-icon-wrapper {
+    background: rgba(234, 179, 8, 0.15);
+    border-color: var(--accent-gold, #f59e0b);
+    transform: scale(1.1);
+}
+
+.missing-cross-icon {
+    color: rgba(255, 255, 255, 0.4);
+    transition: color 0.2s ease;
+}
+
+.card-item:hover .missing-cross-icon {
+    color: var(--accent-gold, #f59e0b);
 }
 
 .placeholder-symbol {
@@ -470,12 +513,19 @@ nav button:disabled {
 }
 
 .placeholder-label {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
     font-size: 0.65rem;
-    color: var(--text-muted);
-    margin-top: 0.3rem;
+    color: var(--text-main, #ffffff);
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    opacity: 0.6;
+    z-index: 2;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Card Bottom Footer Info */
@@ -768,53 +818,6 @@ nav button:disabled {
     color: #fff;
 }
 
-/* Mobile Responsiveness */
-@media (max-width: 768px) {
-    .header-container {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .controls-container {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .control-group {
-        width: 100%;
-        justify-content: space-between;
-    }
-
-    .select-ais {
-        flex: 1;
-    }
-
-    .custom-select {
-        width: 100%;
-    }
-
-    .filter-tabs {
-        width: 100%;
-        justify-content: space-between;
-    }
-
-    .tab-btn {
-        flex: 1;
-        text-align: center;
-        padding: 0.45rem 0.25rem;
-        font-size: 0.75rem;
-    }
-
-    .cards-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
-    }
-
-    .country-page {
-        padding: 1rem;
-    }
-}
-
 /* Header User Profile & Pack Button */
 .header-user-info {
     display: flex;
@@ -917,4 +920,206 @@ nav button:disabled {
     padding: 0.1rem 0.4rem;
     border-radius: 4px;
     z-index: 10;
+}
+
+/* ==========================================================================
+   DISEÑO RESPONSIVO COMPLETO (DESKTOP, TABLET Y MÓVIL)
+   ========================================================================== */
+
+/* Pantallas grandes / Escritorios ( >= 1200px ) */
+@media (min-width: 1200px) {
+    .cards-grid {
+        grid-template-columns: repeat(6, 1fr);
+    }
+}
+
+/* Pantallas medianas y Laptops ( 992px a 1199px ) */
+@media (min-width: 992px) and (max-width: 1199px) {
+    .cards-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* Tablets en formato horizontal y Laptops pequeñas ( 768px a 991px ) */
+@media (max-width: 991px) {
+    .cards-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+    }
+    .header-container {
+        gap: 1rem;
+    }
+}
+
+/* Dispositivos Móviles y Tablets verticales ( <= 768px ) */
+@media (max-width: 768px) {
+    header {
+        padding: 0.85rem 1rem;
+    }
+
+    .header-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+        text-align: center;
+    }
+
+    .header-titulo {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .header-user-info {
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .group-badge {
+        font-size: 0.8rem;
+        padding: 0.3rem 0.65rem;
+    }
+
+    .btn-pack {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.85rem;
+    }
+
+    .album-controlador {
+        padding: 0.75rem 1rem;
+    }
+
+    .controlador-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .pais-container {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .pais-container select {
+        flex: 1;
+        width: 100%;
+    }
+
+    .filtro-estado {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .tab-btn {
+        flex: 1;
+        text-align: center;
+        padding: 0.45rem 0.25rem;
+        font-size: 0.75rem;
+    }
+
+    nav {
+        padding: 0.6rem 1rem;
+        gap: 0.75rem;
+    }
+
+    nav button {
+        padding: 0.45rem 0.75rem;
+        font-size: 0.8rem;
+    }
+
+    #nav-titulo {
+        font-size: 0.95rem;
+    }
+
+    #nav-subtitulo {
+        font-size: 0.7rem;
+    }
+
+    #album-container {
+        padding: 0 0.85rem;
+        margin: 1rem auto;
+    }
+
+    .country-page {
+        padding: 1rem;
+        border-radius: var(--radius-lg);
+    }
+
+    .country-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .modal-overlay {
+        padding: 0.75rem;
+    }
+
+    .modal-content {
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-body {
+        grid-template-columns: 1fr;
+        padding: 1.25rem;
+        gap: 1rem;
+    }
+
+    .info-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        padding: 0.65rem;
+    }
+}
+
+/* Móviles Pequeños ( <= 480px ) */
+@media (max-width: 480px) {
+    .header-container h1 {
+        font-size: 1.25rem;
+    }
+
+    .cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+
+    .card-header-bar {
+        padding: 0.35rem 0.45rem;
+    }
+
+    .card-code {
+        font-size: 0.65rem;
+    }
+
+    .role-tag {
+        font-size: 0.55rem;
+        padding: 0.05rem 0.25rem;
+    }
+
+    .card-info {
+        padding: 0.4rem;
+    }
+
+    .player-name {
+        font-size: 0.75rem;
+    }
+
+    .player-sub {
+        font-size: 0.6rem;
+    }
+
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .btn {
+        width: 100%;
+    }
 }

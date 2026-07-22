@@ -1,45 +1,23 @@
-/**
- * Álbum de Barajitas - Mundial 2026
- * Lógica principal de consumo de API, gestión de estado del álbum y manipulación del DOM.
- */
+// --- CONSTANTES Y CONFIGURACIÓN DE LA API ---
+const API_URL = 'https://sticker-album-server-proyect-production.up.railway.app/api';
+const API_KEY = 'WC2026_GRP1_A205DCCA7C36B6F7';
 
-// Global State
-const API_URL = 'https://sticker-album-server-proyect-production.up.railway.app/api/cards';
-const STORAGE_KEY = 'mundial2026_album_state_v1';
-
-let rawAlbumData = []; // Raw data from API
-let normalizedCountries = []; // Formatted country & card structure
-let userInventory = {}; // User state: { cardId: { count: number, stuck: boolean } }
-
-// Active Filter State
-let currentGroupFilter = 'ALL';
-let currentCountryFilter = 'ALL';
-let currentStatusFilter = 'ALL';
-let currentSearchQuery = '';
-let currentCountryPageIndex = 0; // Index in normalizedCountries
-
-// DOM Elements
+// --- SELECCIÓN DE ELEMENTOS DEL DOM (AL INICIO DEL PROGRAMA) ---
+const paisSelect = document.getElementById('pais-filtro');
+const tabButtons = document.querySelectorAll('.tab-btn');
+const btnPrev = document.getElementById('btn-prev');
+const btnNext = document.getElementById('btn-next');
+const navTitulo = document.getElementById('nav-titulo');
+const navSubtitulo = document.getElementById('nav-subtitulo');
 const albumContainer = document.getElementById('album-container');
-const loadingSpinner = document.getElementById('loading-spinner');
-const groupFilterSelect = document.getElementById('group-filter');
-const countryFilterSelect = document.getElementById('country-filter');
-const searchInput = document.getElementById('search-input');
-const filterTabs = document.querySelectorAll('.tab-btn');
 
-// Progress & Stats DOM
+// Elementos del Encabezado (Perfil & Sobres)
+const groupName = document.getElementById('group-name');
 const albumProgressText = document.getElementById('album-progress-text');
-const albumProgressFill = document.getElementById('album-progress-fill');
-const statStuckCount = document.getElementById('stat-stuck-count');
-const statMissingCount = document.getElementById('stat-missing-count');
-const statRepeatedCount = document.getElementById('stat-repeated-count');
+const btnOpenPack = document.getElementById('btn-open-pack');
+const packsCount = document.getElementById('packs-count');
 
-// Pager DOM
-const btnPrevPage = document.getElementById('btn-prev-page');
-const btnNextPage = document.getElementById('btn-next-page');
-const pageCurrentTitle = document.getElementById('page-current-title');
-const pageCountSubtitle = document.getElementById('page-count-subtitle');
-
-// Modal DOM
+// Elementos del Modal de Inspección de Barajita
 const cardModal = document.getElementById('card-modal');
 const modalCloseBtn = document.getElementById('modal-close-btn');
 const modalCardPreview = document.getElementById('modal-card-preview');
@@ -53,591 +31,466 @@ const modalCardStatus = document.getElementById('modal-card-status');
 const modalCardCopies = document.getElementById('modal-card-copies');
 const btnToggleStuck = document.getElementById('btn-toggle-stuck');
 const btnToggleStuckText = document.getElementById('btn-toggle-stuck-text');
-const btnAddDuplicate = document.getElementById('btn-add-duplicate');
-const btnRemoveDuplicate = document.getElementById('btn-remove-duplicate');
 
-let activeModalCard = null;
+// --- ESTADO GLOBAL DE LA APLICACIÓN ---
+let allCountries = [];
+let groupProfile = null;
+let albumStats = null;
+let selectedCountry = 'Todas';
+let selectedFilter = 'Todas';
+let currentPage = 1;
+let activeCardId = null;
 
-// Initialize App
+// --- INICIALIZACIÓN DE LA APLICACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
-    initApp();
+    initEventListeners();
+    loadAppData();
 });
 
-async function initApp() {
-    loadUserInventory();
-    setupEventListeners();
-    await fetchAlbumData();
-}
-
-/**
- * Carga o inicializa el inventario del usuario desde localStorage
- */
-function loadUserInventory() {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-        try {
-            userInventory = JSON.parse(saved);
-        } catch (e) {
-            console.error('Error al cargar inventario local:', e);
-            userInventory = {};
-        }
+// Cargar datos sincronizados desde el servidor remoto
+async function loadAppData() {
+    try {
+        await Promise.all([
+            fetchGroupProfile(),
+            fetchAlbumData()
+        ]);
+        populateCountrySelect();
+        renderAlbum();
+    } catch (error) {
+        console.error('Error al inicializar la aplicación:', error);
     }
 }
 
-/**
- * Guarda el estado actual en localStorage
- */
-function saveUserInventory() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(userInventory));
-    updateGlobalStats();
+// Obtener perfil del grupo autenticado (GET /api/groups/me)
+async function fetchGroupProfile() {
+    try {
+        const res = await fetch(`${API_URL}/groups/me`, {
+            headers: { 'x-api-key': API_KEY }
+        });
+        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+        const data = await res.json();
+        groupProfile = data.group;
+
+        if (groupName && groupProfile) {
+            groupName.textContent = groupProfile.name || 'Mi Grupo';
+        }
+        if (packsCount && groupProfile) {
+            packsCount.textContent = groupProfile.unopenedPacks ?? 0;
+        }
+    } catch (err) {
+        console.error('Error al obtener perfil del grupo:', err);
+    }
 }
 
-/**
- * Consume los datos del servidor central
- */
+// Obtener páginas y estadísticas reales del álbum (GET /api/album)
 async function fetchAlbumData() {
     try {
-        if (loadingSpinner) loadingSpinner.style.display = 'flex';
+        const res = await fetch(`${API_URL}/album`, {
+            headers: { 'x-api-key': API_KEY }
+        });
+        if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+        const data = await res.json();
 
-        const response = await fetch(API_URL);
-        if (!response.ok) {
-            throw new Error(`Error en la respuesta del servidor HTTP: ${response.status}`);
+        allCountries = data.pages || [];
+        albumStats = data.stats || {};
+
+        if (albumProgressText && albumStats) {
+            albumProgressText.textContent = albumStats.completionPercentage || '0%';
         }
-
-        const data = await response.json();
-        rawAlbumData = data;
-        normalizeData(data);
-        initializeInventoryIfEmpty();
-        populateSelectors();
-        updateGlobalStats();
-        renderAlbumView();
-
-    } catch (error) {
-        console.error('Error al cargar el álbum:', error);
+    } catch (err) {
+        console.error('Error al obtener datos del álbum:', err);
         if (albumContainer) {
             albumContainer.innerHTML = `
                 <div class="empty-results">
-                    <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                    <h3>Error al conectar con la API del Álbum</h3>
-                    <p>${error.message}</p>
-                    <p style="margin-top: 0.5rem; font-size: 0.8rem;">Verifica la URL o conexión a internet.</p>
+                    <h3>Error de Conexión</h3>
+                    <p>No se pudo conectar con la API central del álbum.</p>
                 </div>
             `;
         }
-    } finally {
-        if (loadingSpinner) loadingSpinner.style.display = 'none';
     }
 }
 
-/**
- * Normaliza las respuestas estructuradas o listas planas de la API
- */
-function normalizeData(data) {
-    normalizedCountries = [];
+// Poblar el selector de países con los datos de la API
+function populateCountrySelect() {
+    if (!paisSelect) return;
+    paisSelect.innerHTML = '<option value="Todas">Todas las Selecciones</option>';
 
-    if (Array.isArray(data)) {
-        // Caso 1: API retorna arreglo de países [{ country, wcGroup, cards: [...] }]
-        if (data.length > 0 && data[0].cards && Array.isArray(data[0].cards)) {
-            normalizedCountries = data;
-        } 
-        // Caso 2: API retorna lista plana de barajitas [{ id, country, ... }]
-        else {
-            const countryMap = new Map();
-            data.forEach(card => {
-                const cName = card.country || 'Desconocido';
-                if (!countryMap.has(cName)) {
-                    countryMap.set(cName, {
-                        country: cName,
-                        countryCode: card.countryCode || cName.substring(0, 3).toUpperCase(),
-                        wcGroup: card.wcGroup || 'Grupo General',
-                        cards: []
-                    });
-                }
-                countryMap.get(cName).cards.push(card);
-            });
-
-            // Ordenar las cartas por número dentro de cada país
-            countryMap.forEach(country => {
-                country.cards.sort((a, b) => a.number - b.number);
-                normalizedCountries.push(country);
-            });
-        }
-    }
+    allCountries.forEach(c => {
+        const option = document.createElement('option');
+        option.value = c.country;
+        option.textContent = `${c.country} (${c.countryCode})`;
+        paisSelect.appendChild(option);
+    });
 }
 
-/**
- * Inicializa inventario de demostración si el usuario inicia por primera vez
- */
-function initializeInventoryIfEmpty() {
-    let allCards = getAllCards();
-    let hasEntries = Object.keys(userInventory).length > 0;
-
-    if (!hasEntries && allCards.length > 0) {
-        // Simular que el usuario ha obtenido algunas barajitas iniciales
-        allCards.forEach((card, index) => {
-            // Dar pegadas al ~35% de las cartas y algunas repetidas para demostración
-            const isStuck = index % 3 === 0;
-            const hasDuplicate = isStuck && index % 6 === 0;
-
-            userInventory[card.id] = {
-                count: hasDuplicate ? 2 : (isStuck ? 1 : 0),
-                stuck: isStuck
-            };
+// Inicializar todos los Event Listeners con las constantes del DOM
+function initEventListeners() {
+    // Selector de País
+    if (paisSelect) {
+        paisSelect.addEventListener('change', (e) => {
+            selectedCountry = e.target.value;
+            currentPage = 1;
+            renderAlbum();
         });
-        saveUserInventory();
-    } else {
-        // Asegurar que todas las cartas conocidas tengan entrada en el mapa de inventario
-        allCards.forEach(card => {
-            if (!userInventory[card.id]) {
-                userInventory[card.id] = { count: 0, stuck: false };
+    }
+
+    // Tabs de Filtros por Estado (Todas, Pegadas, Faltantes, Repetidas)
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabButtons.forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-selected', 'false');
+            });
+            btn.classList.add('active');
+            btn.setAttribute('aria-selected', 'true');
+
+            selectedFilter = btn.getAttribute('data-filter') || 'Todas';
+            currentPage = 1;
+            renderAlbum();
+        });
+    });
+
+    // Paginación anterior / siguiente
+    if (btnPrev) {
+        btnPrev.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderAlbum();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         });
     }
-}
 
-/**
- * Obtiene la lista completa de barajitas de todas las selecciones
- */
-function getAllCards() {
-    const list = [];
-    normalizedCountries.forEach(c => {
-        if (c.cards) {
-            c.cards.forEach(card => list.push(card));
-        }
-    });
-    return list;
-}
+    if (btnNext) {
+        btnNext.addEventListener('click', () => {
+            const filtered = getFilteredCountries();
+            if (currentPage < filtered.length) {
+                currentPage++;
+                renderAlbum();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+    }
 
-/**
- * Pobla los selectores de filtro de Grupos y Países
- */
-function populateSelectors() {
-    if (!groupFilterSelect || !countryFilterSelect) return;
+    // Navegación con teclado (Flechas izquierda / derecha)
+    document.addEventListener('keydown', (e) => {
+        if (cardModal && cardModal.classList.contains('active')) return;
 
-    // Extraer grupos únicos
-    const groups = new Set();
-    const countries = [];
-
-    normalizedCountries.forEach(c => {
-        if (c.wcGroup) groups.add(c.wcGroup);
-        countries.push({ name: c.country, code: c.countryCode });
-    });
-
-    // Grupos
-    groupFilterSelect.innerHTML = '<option value="ALL">Todos los Grupos</option>';
-    Array.from(groups).sort().forEach(grp => {
-        const opt = document.createElement('option');
-        opt.value = grp;
-        opt.textContent = grp;
-        groupFilterSelect.appendChild(opt);
-    });
-
-    // Países
-    countryFilterSelect.innerHTML = '<option value="ALL">Todas las Selecciones</option>';
-    countries.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.name;
-        opt.textContent = `${c.name} (${c.code})`;
-        countryFilterSelect.appendChild(opt);
-    });
-}
-
-/**
- * Calcula y actualiza las estadísticas globales del álbum
- */
-function updateGlobalStats() {
-    const allCards = getAllCards();
-    const totalCards = allCards.length;
-    let stuckCount = 0;
-    let missingCount = 0;
-    let repeatedCount = 0;
-
-    allCards.forEach(card => {
-        const inv = userInventory[card.id] || { count: 0, stuck: false };
-        if (inv.stuck) {
-            stuckCount++;
-        } else {
-            missingCount++;
-        }
-        if (inv.count > 1) {
-            repeatedCount += (inv.count - (inv.stuck ? 1 : 0));
+        if (e.key === 'ArrowLeft') {
+            if (btnPrev && !btnPrev.disabled) btnPrev.click();
+        } else if (e.key === 'ArrowRight') {
+            if (btnNext && !btnNext.disabled) btnNext.click();
         }
     });
 
-    const percentage = totalCards > 0 ? Math.round((stuckCount / totalCards) * 100) : 0;
+    // Modal de Carta (Cierre)
+    if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeCardModal);
+    if (cardModal) {
+        cardModal.addEventListener('click', (e) => {
+            if (e.target === cardModal) closeCardModal();
+        });
+    }
 
-    if (albumProgressText) albumProgressText.textContent = `${stuckCount} / ${totalCards} (${percentage}%)`;
-    if (albumProgressFill) albumProgressFill.style.width = `${percentage}%`;
-    if (statStuckCount) statStuckCount.textContent = stuckCount;
-    if (statMissingCount) statMissingCount.textContent = missingCount;
-    if (statRepeatedCount) statRepeatedCount.textContent = repeatedCount;
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeCardModal();
+    });
+
+    // Redirección a la pantalla de sobres al presionar "Abrir Sobre"
+    if (btnOpenPack) {
+        btnOpenPack.addEventListener('click', () => {
+            window.location.href = 'sobres.html';
+        });
+    }
+
+    // Petición a la API para pegar barajita (POST /api/album/stick)
+    if (btnToggleStuck) {
+        btnToggleStuck.addEventListener('click', handleStickCard);
+    }
 }
 
-/**
- * Configura los event listeners para controles, filtros y modales
- */
-function setupEventListeners() {
-    // Filtros de Grupo y País
-    groupFilterSelect.addEventListener('change', (e) => {
-        currentGroupFilter = e.target.value;
-        currentCountryPageIndex = 0;
-        renderAlbumView();
-    });
+// Pegar barajita en el álbum central (POST /api/album/stick)
+async function handleStickCard() {
+    if (!activeCardId) return;
+    const card = findCardById(activeCardId);
+    if (!card) return;
 
-    countryFilterSelect.addEventListener('change', (e) => {
-        currentCountryFilter = e.target.value;
-        if (currentCountryFilter !== 'ALL') {
-            const foundIdx = normalizedCountries.findIndex(c => c.country === currentCountryFilter);
-            if (foundIdx !== -1) currentCountryPageIndex = foundIdx;
-        } else {
-            currentCountryPageIndex = 0;
+    try {
+        const res = await fetch(`${API_URL}/album/stick`, {
+            method: 'POST',
+            headers: {
+                'x-api-key': API_KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ cardCode: card.code })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+            alert(data.message || 'No se pudo pegar la barajita en el álbum.');
+            return;
         }
-        renderAlbumView();
-    });
 
-    // Filtros por Estado (Todas, Pegadas, Faltantes, Repetidas)
-    filterTabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            filterTabs.forEach(t => {
-                t.classList.remove('active');
-                t.setAttribute('aria-selected', 'false');
-            });
-            tab.classList.add('active');
-            tab.setAttribute('aria-selected', 'true');
-            currentStatusFilter = tab.getAttribute('data-filter');
-            renderAlbumView();
+        // Recargar datos desde el servidor y refrescar la vista
+        await fetchAlbumData();
+        updateModalUI(activeCardId);
+        renderAlbum();
+    } catch (err) {
+        console.error('Error al pegar barajita:', err);
+        alert('Error al conectar con la API para pegar la barajita.');
+    }
+}
+
+// Filtrar países y estampas según la selección de país y tab de estado activa
+function getFilteredCountries() {
+    return allCountries.filter(c => {
+        if (selectedCountry !== 'Todas' && c.country !== selectedCountry) {
+            return false;
+        }
+
+        if (selectedFilter === 'Todas') return true;
+
+        const stickers = c.stickers || [];
+        return stickers.some(s => {
+            if (selectedFilter === 'Pegadas') return s.isStuck === true;
+            if (selectedFilter === 'Faltantes') return s.isStuck === false;
+            if (selectedFilter === 'Repetidas') return s.duplicatesCount > 0;
+            return true;
         });
     });
-
-    // Buscador
-    searchInput.addEventListener('input', (e) => {
-        currentSearchQuery = e.target.value.toLowerCase().trim();
-        renderAlbumView();
-    });
-
-    // Navegación Pager (Página anterior / siguiente)
-    btnPrevPage.addEventListener('click', () => {
-        const filteredList = getFilteredCountriesList();
-        if (currentCountryPageIndex > 0) {
-            currentCountryPageIndex--;
-            renderAlbumView();
-        }
-    });
-
-    btnNextPage.addEventListener('click', () => {
-        const filteredList = getFilteredCountriesList();
-        if (currentCountryPageIndex < filteredList.length - 1) {
-            currentCountryPageIndex++;
-            renderAlbumView();
-        }
-    });
-
-    // Modal
-    modalCloseBtn.addEventListener('click', closeModal);
-    cardModal.addEventListener('click', (e) => {
-        if (e.target === cardModal) closeModal();
-    });
-
-    // Acciones del modal
-    btnToggleStuck.addEventListener('click', () => {
-        if (!activeModalCard) return;
-        const inv = userInventory[activeModalCard.id] || { count: 0, stuck: false };
-        
-        if (inv.stuck) {
-            inv.stuck = false;
-        } else {
-            inv.stuck = true;
-            if (inv.count < 1) inv.count = 1;
-        }
-        userInventory[activeModalCard.id] = inv;
-        saveUserInventory();
-        updateModalCardView(activeModalCard);
-        renderAlbumView();
-    });
-
-    btnAddDuplicate.addEventListener('click', () => {
-        if (!activeModalCard) return;
-        const inv = userInventory[activeModalCard.id] || { count: 0, stuck: false };
-        inv.count += 1;
-        userInventory[activeModalCard.id] = inv;
-        saveUserInventory();
-        updateModalCardView(activeModalCard);
-        renderAlbumView();
-    });
-
-    btnRemoveDuplicate.addEventListener('click', () => {
-        if (!activeModalCard) return;
-        const inv = userInventory[activeModalCard.id] || { count: 0, stuck: false };
-        if (inv.count > 0) {
-            inv.count -= 1;
-            if (inv.count === 0) inv.stuck = false;
-            userInventory[activeModalCard.id] = inv;
-            saveUserInventory();
-            updateModalCardView(activeModalCard);
-            renderAlbumView();
-        }
-    });
 }
 
-/**
- * Retorna la lista de países filtrados según los controles de Grupo y Búsqueda
- */
-function getFilteredCountriesList() {
-    return normalizedCountries.filter(countryObj => {
-        // Filtro de Grupo
-        if (currentGroupFilter !== 'ALL' && countryObj.wcGroup !== currentGroupFilter) {
-            return false;
-        }
-        // Filtro de País específico
-        if (currentCountryFilter !== 'ALL' && countryObj.country !== currentCountryFilter) {
-            return false;
-        }
-        // Filtro de Búsqueda
-        if (currentSearchQuery) {
-            const hasMatchInCountry = countryObj.country.toLowerCase().includes(currentSearchQuery);
-            const hasMatchInCards = countryObj.cards.some(c => 
-                c.name.toLowerCase().includes(currentSearchQuery) || 
-                c.code.toLowerCase().includes(currentSearchQuery)
-            );
-            return hasMatchInCountry || hasMatchInCards;
-        }
-        return true;
-    });
-}
-
-/**
- * Renderiza la vista principal del Álbum (Páginas por País)
- */
-function renderAlbumView() {
+// Renderizado principal del álbum
+function renderAlbum() {
     if (!albumContainer) return;
-    albumContainer.innerHTML = '';
+    const filteredCountries = getFilteredCountries();
+    const totalPages = filteredCountries.length;
 
-    const filteredCountries = getFilteredCountriesList();
-
-    if (filteredCountries.length === 0) {
+    if (totalPages === 0) {
         albumContainer.innerHTML = `
             <div class="empty-results">
-                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M8 15s1.5-2 4-2 4 2 4 2M9 9h.01M15 9h.01"></path>
                 </svg>
                 <h3>No se encontraron barajitas</h3>
-                <p>Intenta cambiar los filtros de búsqueda o seleccionar otra categoría.</p>
+                <p>No hay barajitas que coincidan con el filtro seleccionado.</p>
             </div>
         `;
-        updatePagerState(0, 0, 'Sin resultados');
+        if (navTitulo) navTitulo.textContent = 'Sin resultados';
+        if (navSubtitulo) navSubtitulo.textContent = 'Página 0 de 0';
+        updateNavButtons(0);
         return;
     }
 
-    // Asegurar que el índice de página esté dentro de los límites
-    if (currentCountryPageIndex >= filteredCountries.length) {
-        currentCountryPageIndex = filteredCountries.length - 1;
-    }
-    if (currentCountryPageIndex < 0) {
-        currentCountryPageIndex = 0;
-    }
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
 
-    const targetCountry = filteredCountries[currentCountryPageIndex];
-    updatePagerState(currentCountryPageIndex + 1, filteredCountries.length, `${targetCountry.country} (${targetCountry.countryCode})`);
+    const currentCountry = filteredCountries[currentPage - 1];
+    const stickers = currentCountry.stickers || [];
+    const totalCount = stickers.length;
+    const stuckCount = stickers.filter(s => s.isStuck).length;
 
-    // Renderizar la página de la selección actual
-    const pageElement = createCountryPageHTML(targetCountry);
-    albumContainer.appendChild(pageElement);
-}
-
-/**
- * Actualiza el indicador del Pager de Navegación
- */
-function updatePagerState(current, total, title) {
-    if (pageCurrentTitle) pageCurrentTitle.textContent = title;
-    if (pageCountSubtitle) pageCountSubtitle.textContent = `Página ${current} de ${total}`;
-    
-    if (btnPrevPage) btnPrevPage.disabled = (current <= 1);
-    if (btnNextPage) btnNextPage.disabled = (current >= total);
-}
-
-/**
- * Crea el elemento DOM para la página de un país (con sus 12 barajitas)
- */
-function createCountryPageHTML(countryObj) {
-    const section = document.createElement('section');
-    section.className = 'country-page';
-
-    // Calcular estadísticas del país
-    let countryStuckCount = 0;
-    countryObj.cards.forEach(c => {
-        const inv = userInventory[c.id];
-        if (inv && inv.stuck) countryStuckCount++;
-    });
-
-    // Header del País
-    const header = document.createElement('div');
-    header.className = 'country-header';
-    header.innerHTML = `
-        <div class="country-meta">
-            <div class="country-badge-flag">${countryObj.countryCode}</div>
-            <div>
-                <h2 class="country-name">${countryObj.country}</h2>
-                <span class="wc-group-tag">${countryObj.wcGroup || 'Mundial 2026'}</span>
-            </div>
-        </div>
-        <div class="country-progress-badge">
-            Completado: <strong>${countryStuckCount} / ${countryObj.cards.length}</strong>
-        </div>
-    `;
-    section.appendChild(header);
-
-    // Grid de 12 barajitas
-    const grid = document.createElement('div');
-    grid.className = 'cards-grid';
-
-    // Filtrar cartas según pestaña de estado (Pegadas, Faltantes, Repetidas)
-    const cardsToRender = countryObj.cards.filter(card => {
-        const inv = userInventory[card.id] || { count: 0, stuck: false };
-        if (currentStatusFilter === 'STUCK') return inv.stuck;
-        if (currentStatusFilter === 'MISSING') return !inv.stuck;
-        if (currentStatusFilter === 'REPEATED') return (inv.count > 1);
+    // Filtrar barajitas visibles según la pestaña seleccionada
+    const renderList = stickers.filter(s => {
+        if (selectedFilter === 'Pegadas') return s.isStuck === true;
+        if (selectedFilter === 'Faltantes') return s.isStuck === false;
+        if (selectedFilter === 'Repetidas') return s.duplicatesCount > 0;
         return true;
     });
 
-    if (cardsToRender.length === 0) {
-        const emptyMsg = document.createElement('div');
-        emptyMsg.className = 'empty-results';
-        emptyMsg.style.gridColumn = '1 / -1';
-        emptyMsg.innerHTML = `<p>No hay barajitas en la categoría <strong>${getFilterNameLabel(currentStatusFilter)}</strong> para ${countryObj.country}.</p>`;
-        grid.appendChild(emptyMsg);
-    } else {
-        cardsToRender.forEach(card => {
-            const cardEl = createCardElement(card);
-            grid.appendChild(cardEl);
+    let html = `
+        <section class="country-page">
+            <div class="country-header">
+                <div class="country-meta">
+                    <div class="country-badge-flag">${escapeHTML(currentCountry.countryCode)}</div>
+                    <h2 class="country-name">${escapeHTML(currentCountry.country)}</h2>
+                    <span class="wc-group-tag">${escapeHTML(currentCountry.wcGroup)}</span>
+                </div>
+                <div class="country-progress-badge">
+                    <strong>${stuckCount}</strong> / ${totalCount} Pegadas
+                </div>
+            </div>
+
+            <div class="cards-grid">
+    `;
+
+    renderList.forEach(s => {
+        html += renderCardHTML(s);
+    });
+
+    html += `
+            </div>
+        </section>
+    `;
+
+    albumContainer.innerHTML = html;
+
+    // Abrir modal al presionar cualquier barajita
+    const grid = albumContainer.querySelector('.cards-grid');
+    if (grid) {
+        grid.addEventListener('click', (e) => {
+            const cardItem = e.target.closest('.card-item');
+            if (cardItem) {
+                const cardId = cardItem.getAttribute('data-id');
+                if (cardId) openCardModal(cardId);
+            }
         });
     }
 
-    section.appendChild(grid);
-    return section;
+    if (navTitulo) navTitulo.textContent = `${currentCountry.country} (${currentCountry.wcGroup})`;
+    if (navSubtitulo) navSubtitulo.textContent = `País ${currentPage} de ${totalPages}`;
+    updateNavButtons(totalPages);
 }
 
-function getFilterNameLabel(filter) {
-    if (filter === 'STUCK') return 'Pegadas';
-    if (filter === 'MISSING') return 'Faltantes';
-    if (filter === 'REPEATED') return 'Repetidas';
-    return 'Todas';
-}
+// Generar marcado HTML para cada barajita
+function renderCardHTML(s) {
+    const roleLower = (s.role || '').toLowerCase();
+    const isEscudo = roleLower.includes('escudo');
+    const isMissing = !s.isStuck;
 
-/**
- * Crea la representación visual HTML de una Barajita (Card Item)
- */
-function createCardElement(card) {
-    const inv = userInventory[card.id] || { count: 0, stuck: false };
-    const isStuck = inv.stuck;
-    const isEscudo = card.role === 'Escudo';
-    const isRepeated = inv.count > 1;
-    const extraCopies = inv.count - (isStuck ? 1 : 0);
+    let cardClasses = ['card-item'];
+    if (isEscudo) cardClasses.push('role-escudo');
+    if (isMissing) cardClasses.push('status-missing');
 
-    const cardDiv = document.createElement('article');
-    cardDiv.className = `card-item ${isStuck ? 'status-stuck' : 'status-missing'} ${isEscudo ? 'role-escudo' : ''}`;
-    cardDiv.setAttribute('data-card-id', card.id);
+    const roleTagClass = getRoleTagClass(s.role);
+    const roleSVG = getRoleSVG(s.role);
 
-    // Badge de Repetidas (Top Right)
-    let repeatedBadgeHTML = '';
-    if (isRepeated && extraCopies > 0) {
-        repeatedBadgeHTML = `<div class="repeated-badge" title="${extraCopies} repetida(s)">x${extraCopies + 1}</div>`;
-    }
+    return `
+        <div class="${cardClasses.join(' ')}" data-id="${escapeHTML(s.id)}" tabindex="0" role="button" aria-label="${escapeHTML(s.name)}">
+            ${s.duplicatesCount > 0 ? `<div class="repeated-badge">+${s.duplicatesCount}</div>` : ''}
+            
+            <div class="card-header-bar">
+                <span class="card-code">${escapeHTML(s.code)}</span>
+                <span class="role-tag ${roleTagClass}">${escapeHTML(s.role)}</span>
+            </div>
 
-    // Role Tag Formatting
-    const roleClass = `tag-${(card.role || 'jugador').toLowerCase()}`;
+            <div class="card-image-box">
+                ${roleSVG}
+                <span class="placeholder-label">#${s.number}</span>
+            </div>
 
-    // Card Content HTML (Clean Placeholder Frame for Card Images)
-    cardDiv.innerHTML = `
-        ${repeatedBadgeHTML}
-        <div class="card-header-bar">
-            <span class="card-code">${card.code}</span>
-            <span class="role-tag ${roleClass}">${card.role}</span>
-        </div>
-        
-        <!-- Clean Image Placeholder Container -->
-        <div class="card-image-box">
-            ${isEscudo ? `
-                <svg class="placeholder-symbol" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    <path d="M12 6v6l4 2"/>
-                </svg>
-                <span class="placeholder-label">Escudo Oficial</span>
-            ` : `
-                <svg class="placeholder-symbol" viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                <span class="placeholder-label">${isStuck ? 'Barajita Pegada' : 'Espacio Vacío'}</span>
-            `}
-        </div>
-
-        <div class="card-info">
-            <div class="player-name">${isStuck ? card.name : '???'}</div>
-            <div class="player-sub">${isStuck ? `#${card.number} - ${card.country}` : `<span class="status-text-missing">No Conseguida</span>`}</div>
+            <div class="card-info">
+                <div class="player-name">${escapeHTML(s.name)}</div>
+                <div class="player-sub">${escapeHTML(s.country)}</div>
+                ${isMissing ? `<div class="status-text-missing">Faltante</div>` : ''}
+            </div>
         </div>
     `;
-
-    // Click trigger to inspect
-    cardDiv.addEventListener('click', () => openModal(card));
-
-    return cardDiv;
 }
 
-/**
- * Abre el Modal de Inspección y Detalle de la Barajita
- */
-function openModal(card) {
-    activeModalCard = card;
-    updateModalCardView(card);
-    cardModal.classList.add('active');
-    cardModal.setAttribute('aria-hidden', 'false');
+// Actualizar deshabilitado de los botones de navegación
+function updateNavButtons(totalPages) {
+    if (btnPrev) btnPrev.disabled = (currentPage <= 1 || totalPages === 0);
+    if (btnNext) btnNext.disabled = (currentPage >= totalPages || totalPages === 0);
 }
 
-/**
- * Actualiza la información del modal
- */
-function updateModalCardView(card) {
-    const inv = userInventory[card.id] || { count: 0, stuck: false };
-    
-    // Render preview inside modal
-    if (modalCardPreview) {
-        modalCardPreview.innerHTML = '';
-        const previewCard = createCardElement(card);
-        modalCardPreview.appendChild(previewCard);
+// Abrir modal de detalles
+function openCardModal(cardId) {
+    activeCardId = cardId;
+    updateModalUI(cardId);
+    if (cardModal) {
+        cardModal.classList.add('active');
+        cardModal.setAttribute('aria-hidden', 'false');
     }
+}
 
-    if (modalWcGroup) modalWcGroup.textContent = card.wcGroup || 'Mundial 2026';
-    if (modalCardCode) modalCardCode.textContent = card.code;
-    if (modalCardName) modalCardName.textContent = card.name;
-    if (modalCountryName) modalCountryName.textContent = card.country;
-    if (modalCardRole) modalCardRole.textContent = card.role;
+// Cerrar modal de detalles
+function closeCardModal() {
+    activeCardId = null;
+    if (cardModal) {
+        cardModal.classList.remove('active');
+        cardModal.setAttribute('aria-hidden', 'true');
+    }
+}
+
+// Actualizar información mostrada en el modal de inspección
+function updateModalUI(cardId) {
+    const card = findCardById(cardId);
+    if (!card) return;
+
+    if (modalCardPreview) modalCardPreview.innerHTML = renderCardHTML(card);
+    if (modalWcGroup) modalWcGroup.textContent = card.wcGroup || '';
+    if (modalCardCode) modalCardCode.textContent = card.code || '';
+    if (modalCardName) modalCardName.textContent = card.name || '';
+    if (modalCountryName) modalCountryName.textContent = card.country || '';
+    if (modalCardRole) modalCardRole.textContent = card.role || '';
     if (modalCardNumber) modalCardNumber.textContent = `#${card.number}`;
 
     if (modalCardStatus) {
-        modalCardStatus.textContent = inv.stuck ? 'Pegada en Álbum' : 'Faltante';
-        modalCardStatus.style.color = inv.stuck ? 'var(--accent-emerald)' : 'var(--text-muted)';
+        modalCardStatus.textContent = card.isStuck ? 'Pegada' : 'Faltante';
+        modalCardStatus.style.color = card.isStuck ? 'var(--accent-emerald)' : 'var(--text-muted)';
     }
 
     if (modalCardCopies) {
-        modalCardCopies.textContent = `${inv.count} disponible(s)`;
+        if (card.isStuck && card.duplicatesCount > 0) {
+            modalCardCopies.textContent = `1 pegada + ${card.duplicatesCount} repetida(s)`;
+        } else if (card.isStuck && card.duplicatesCount === 0) {
+            modalCardCopies.textContent = `1 pegada (0 repetidas)`;
+        } else if (!card.isStuck && card.duplicatesCount > 0) {
+            modalCardCopies.textContent = `0 pegadas (${card.duplicatesCount} repetida(s))`;
+        } else {
+            modalCardCopies.textContent = `0 unidades`;
+        }
     }
 
-    // Primary Button Text
+    // Configurar estado del botón Pegar en Álbum (POST /api/album/stick)
     if (btnToggleStuckText) {
-        btnToggleStuckText.textContent = inv.stuck ? 'Despegar del Álbum' : 'Pegar en Álbum';
+        btnToggleStuckText.textContent = card.isStuck ? 'En Álbum' : 'Pegar en Álbum';
+    }
+
+    if (btnToggleStuck) {
+        const canStick = !card.isStuck && card.duplicatesCount > 0;
+        btnToggleStuck.disabled = !canStick && !card.isStuck;
+        btnToggleStuck.style.opacity = (card.isStuck || canStick) ? '1' : '0.5';
+        btnToggleStuck.style.cursor = (card.isStuck || canStick) ? 'pointer' : 'not-allowed';
     }
 }
 
-/**
- * Cierra el Modal
- */
-function closeModal() {
-    cardModal.classList.remove('active');
-    cardModal.setAttribute('aria-hidden', 'true');
-    activeModalCard = null;
+// Buscar barajita por su ID en el catálogo cargado
+function findCardById(cardId) {
+    for (const c of allCountries) {
+        const stickers = c.stickers || [];
+        const found = stickers.find(s => s.id === cardId);
+        if (found) return found;
+    }
+    return null;
+}
+
+// Obtener icono SVG para el rol
+function getRoleSVG(role) {
+    const r = (role || '').toLowerCase();
+    if (r.includes('escudo')) {
+        return `<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" class="placeholder-symbol"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V7l-9-5z"></path></svg>`;
+    } else if (r.includes('arquero') || r.includes('portero')) {
+        return `<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" class="placeholder-symbol"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v4M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6M10 10V5a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v7M6 12v-2a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6c0 5 4 9 9 9h1a9 9 0 0 0 9-9v-3a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2"></path></svg>`;
+    } else if (r.includes('defensa')) {
+        return `<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" class="placeholder-symbol"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`;
+    } else if (r.includes('medio')) {
+        return `<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" class="placeholder-symbol"><circle cx="12" cy="12" r="9"></circle><path d="M12 3v18M3 12h18"></path></svg>`;
+    } else {
+        return `<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" class="placeholder-symbol"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8M8 12h8"></path></svg>`;
+    }
+}
+
+// Obtener clase CSS para el tag de rol
+function getRoleTagClass(role) {
+    const r = (role || '').toLowerCase();
+    if (r.includes('escudo')) return 'tag-escudo';
+    if (r.includes('arquero') || r.includes('portero')) return 'tag-arquero';
+    if (r.includes('defensa')) return 'tag-defensa';
+    if (r.includes('medio')) return 'tag-mediocampista';
+    if (r.includes('delantero')) return 'tag-delantero';
+    return '';
+}
+
+// Escapar HTML por seguridad
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }

@@ -1,6 +1,6 @@
 // =============================================================================
 // DICCIONARIO DE FOTOS DE JUGADORES (CÓDIGO DE BARAJITA : URL DE LA FOTO)
-// Solo es para las imagenes de las cartas nada más
+// Solo es para las imagenes de las cartas nada más, La variable PLAYER-PHOTOS deberia funcionar como una global
 // =============================================================================
 
 const PLAYER_PHOTOS = {

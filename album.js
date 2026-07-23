@@ -1,8 +1,8 @@
-// --- CONSTANTES Y CONFIGURACIÓN DE LA API ---
+// Contantes
 const API_URL = 'https://sticker-album-server-proyect-production.up.railway.app/api';
 const API_KEY = 'WC2026_GRP1_A205DCCA7C36B6F7';
 
-// --- SELECCIÓN DE ELEMENTOS DEL DOM (AL INICIO DEL PROGRAMA) ---
+//DOM
 const paisSelect = document.getElementById('pais-filtro');
 const tabButtons = document.querySelectorAll('.tab-btn');
 const btnPrev = document.getElementById('btn-prev');
@@ -11,13 +11,11 @@ const navTitulo = document.getElementById('nav-titulo');
 const navSubtitulo = document.getElementById('nav-subtitulo');
 const albumContainer = document.getElementById('album-container');
 
-// Elementos del Encabezado (Perfil & Sobres)
 const groupName = document.getElementById('group-name');
 const albumProgressText = document.getElementById('album-progress-text');
 const btnOpenPack = document.getElementById('btn-open-pack');
 const packsCount = document.getElementById('packs-count');
 
-// Elementos del Modal de Inspección de Barajita
 const cardModal = document.getElementById('card-modal');
 const modalCloseBtn = document.getElementById('modal-close-btn');
 const modalCardPreview = document.getElementById('modal-card-preview');
@@ -32,7 +30,7 @@ const modalCardCopies = document.getElementById('modal-card-copies');
 const btnToggleStuck = document.getElementById('btn-toggle-stuck');
 const btnToggleStuckText = document.getElementById('btn-toggle-stuck-text');
 
-// --- ESTADO GLOBAL DE LA APLICACIÓN ---
+//Variables globales
 let allCountries = [];
 let groupProfile = null;
 let albumStats = null;
@@ -41,13 +39,13 @@ let selectedFilter = 'Todas';
 let currentPage = 1;
 let activeCardId = null;
 
-// --- INICIALIZACIÓN DE LA APLICACIÓN ---
+//Inicializador
 document.addEventListener('DOMContentLoaded', () => {
     initEventListeners();
     loadAppData();
 });
 
-// Cargar datos sincronizados desde el servidor remoto
+//Cargar datos sincronizados desde el servidor remoto
 async function loadAppData() {
     try {
         await Promise.all([
@@ -61,7 +59,7 @@ async function loadAppData() {
     }
 }
 
-// Obtener perfil del grupo autenticado (GET /api/groups/me)
+//Obtiene el perfil del grupo
 async function fetchGroupProfile() {
     try {
         const res = await fetch(`${API_URL}/groups/me`, {
@@ -82,7 +80,7 @@ async function fetchGroupProfile() {
     }
 }
 
-// Obtener páginas y estadísticas reales del álbum (GET /api/album)
+//Obtiene el Album
 async function fetchAlbumData() {
     try {
         const res = await fetch(`${API_URL}/album`, {
@@ -303,9 +301,9 @@ function renderAlbum() {
         <section class="country-page">
             <div class="country-header">
                 <div class="country-meta">
-                    <div class="country-badge-flag">${escapeHTML(currentCountry.countryCode)}</div>
-                    <h2 class="country-name">${escapeHTML(currentCountry.country)}</h2>
-                    <span class="wc-group-tag">${escapeHTML(currentCountry.wcGroup)}</span>
+                    <div class="country-badge-flag">${currentCountry.countryCode}</div>
+                    <h2 class="country-name">${currentCountry.country}</h2>
+                    <span class="wc-group-tag">${currentCountry.wcGroup}</span>
                 </div>
                 <div class="country-progress-badge">
                     <strong>${stuckCount}</strong> / ${totalCount} Pegadas
@@ -350,19 +348,18 @@ function renderCardHTML(s) {
     const isMissing = !s.isStuck;
 
     let cardClasses = ['card-item'];
-    if (isEscudo) cardClasses.push('role-escudo');
     if (isMissing) cardClasses.push('status-missing');
 
-    const roleTagClass = getRoleTagClass(s.role);
+    const roleTagClass = getRole(s.role);
     const cardMediaHTML = getCardImageHTML(s);
 
     return `
-        <div class="${cardClasses.join(' ')}" data-id="${escapeHTML(s.id)}" tabindex="0" role="button" aria-label="${escapeHTML(s.name)}">
+        <div class="${cardClasses.join(' ')}" data-id="${s.id}" tabindex="0" role="button" aria-label="${s.name}">
             ${s.duplicatesCount > 0 ? `<div class="repeated-badge">+${s.duplicatesCount}</div>` : ''}
             
             <div class="card-header-bar">
-                <span class="card-code">${escapeHTML(s.code)}</span>
-                <span class="role-tag ${roleTagClass}">${escapeHTML(s.role)}</span>
+                <span class="card-code">${s.code}</span>
+                <span class="role-tag ${roleTagClass}">${s.role}</span>
             </div>
 
             <div class="card-image-box">
@@ -371,8 +368,8 @@ function renderCardHTML(s) {
             </div>
 
             <div class="card-info">
-                <div class="player-name">${escapeHTML(s.name)}</div>
-                <div class="player-sub">${escapeHTML(s.country)}</div>
+                <div class="player-name">${s.name}</div>
+                <div class="player-sub">${s.country}</div>
                 ${isMissing ? `<div class="status-text-missing">Faltante</div>` : ''}
             </div>
         </div>
@@ -469,15 +466,15 @@ function getPlayerPhotoUrl(s) {
         return dictPhoto;
     }
 
-    // Imagen de respaldo por defecto si la URL en el diccionario está vacía ("")
-    return 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=400&q=80';
+    //Imagne por si el valor del diccionario esta vacio
+    return 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR6QYndGhYQqx91cWEpj3T-kklRRfyPvpti5RvcKaxCow&s=10';
 }
 
 // Obtener contenido visual para la carta (foto si está pegada, icono de cruz '+' si está faltante)
 function getCardImageHTML(s) {
     if (s.isStuck) {
         const photoUrl = getPlayerPhotoUrl(s);
-        return `<img src="${photoUrl}" alt="${escapeHTML(s.name)}" class="card-player-img" loading="lazy" />`;
+        return `<img src="${photoUrl}" class="card-player-img" loading="lazy" />`;
     } else {
         return `
             <div class="cross-icon-wrapper">
@@ -489,24 +486,13 @@ function getCardImageHTML(s) {
     }
 }
 
-// Obtener clase CSS para el tag de rol
-function getRoleTagClass(role) {
-    const r = (role || '').toLowerCase();
-    if (r.includes('escudo')) return 'tag-escudo';
-    if (r.includes('arquero') || r.includes('portero')) return 'tag-arquero';
-    if (r.includes('defensa')) return 'tag-defensa';
-    if (r.includes('medio')) return 'tag-mediocampista';
-    if (r.includes('delantero')) return 'tag-delantero';
-    return '';
-}
-
-// Escapar HTML por seguridad
-function escapeHTML(str) {
-    if (!str) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+//Obtiene la etiqueta de css segun el rol
+function getRole(role) {
+    const respuesta = '';
+    if (role === 'escudo') respuesta = 'tag-escudo';
+    if (role === 'arquero') respuesta = 'tag-arquero';
+    if (role === 'defensa') respuesta = 'tag-defensa';
+    if (role === 'medio') respuesta = 'tag-mediocampista';
+    if (role === 'delantero') respuesta = 'tag-delantero';
+    return respuesta;
 }

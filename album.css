@@ -1,9 +1,4 @@
-/* ==========================================================================
-   Álbum Mundial 2026 - Styles & Design System
-   ========================================================================== */
-
 :root {
-    /* Color Palette */
     --bg-dark: #090d16;
     --bg-surface: #111827;
     --bg-surface-elevated: #1f293d;
@@ -128,7 +123,7 @@ header {
     color: var(--text-muted);
 }
 
-.pais-container select{
+.pais-container select {
     background: var(--bg-surface-elevated);
     color: var(--text-main);
     border: 1px solid var(--border-color);
@@ -141,7 +136,6 @@ header {
     transition: border-color var(--transition-fast);
 }
 
-/* Filter Tabs */
 .filtro-estado {
     display: flex;
     background: var(--bg-dark);
@@ -184,7 +178,7 @@ nav {
     border-bottom: 1px solid var(--border-color);
 }
 
-nav button{
+nav button {
     display: flex;
     align-items: center;
     gap: 0.4rem;
@@ -368,26 +362,6 @@ nav button:disabled {
     transform: translateY(-5px) scale(1.02);
     box-shadow: 0 12px 25px rgba(0, 0, 0, 0.6);
     border-color: var(--accent-gold);
-}
-
-/* Card Special Variant: Escudo */
-.card-item.role-escudo {
-    background: var(--bg-card-shield);
-    border-color: rgba(245, 158, 11, 0.5);
-    box-shadow: 0 0 15px rgba(245, 158, 11, 0.15);
-}
-
-.card-item.role-escudo::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border: 2px solid transparent;
-    border-radius: var(--radius-md);
-    background: linear-gradient(135deg, var(--accent-gold), transparent, var(--accent-purple)) border-box;
-    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: destination-out;
-    mask-composite: exclude;
-    pointer-events: none;
 }
 
 /* Card Header (Code & Role Tag) */
@@ -877,11 +851,6 @@ nav button:disabled {
     box-shadow: 0 6px 18px rgba(139, 92, 246, 0.5);
 }
 
-.btn-pack:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-}
 
 .packs-badge {
     background: var(--text-dark);
@@ -931,10 +900,7 @@ nav button:disabled {
     z-index: 10;
 }
 
-/* ==========================================================================
-   DISEÑO RESPONSIVO COMPLETO (DESKTOP, TABLET Y MÓVIL)
-   ========================================================================== */
-
+/*Para el responsive*/
 /* Pantallas grandes / Escritorios ( >= 1200px ) */
 @media (min-width: 1200px) {
     .cards-grid {
@@ -955,6 +921,7 @@ nav button:disabled {
         grid-template-columns: repeat(3, 1fr);
         gap: 1rem;
     }
+
     .header-container {
         gap: 1rem;
     }
